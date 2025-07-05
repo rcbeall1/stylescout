@@ -41,7 +41,6 @@ build/
 
 # Data files (contains user data)
 server/data/
-*.json
 
 # Temporary files
 tmp/
