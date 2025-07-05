@@ -132,6 +132,18 @@ form.addEventListener('submit', async (e) => {
                         if (placeholders[event.imageIndex]) {
                             placeholders[event.imageIndex].textContent = event.message.replace(/[🎨✅⚠️]/g, '').trim();
                         }
+                        
+                        // If image failed, update the placeholder to show error
+                        if (event.status === 'image_failed') {
+                            const cards = document.querySelectorAll('.outfit-image-card.placeholder');
+                            if (cards[event.imageIndex]) {
+                                cards[event.imageIndex].innerHTML = `
+                                    <div class="outfit-placeholder">
+                                        <p style="color: #999;">Unable to generate this outfit</p>
+                                    </div>
+                                `;
+                            }
+                        }
                     }
                     
                     // Handle advice completion - display immediately!
