@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StyleScout - Local Fashion Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 class="logo">StyleScout</h1>
+            <p class="tagline">Know what to wear, wherever you go</p>
+        </header>
+
+        <main>
+            <section class="input-section">
+                <form id="styleForm">
+                    <div class="form-group">
+                        <label for="city">Where are you going?</label>
+                        <input 
+                            type="text" 
+                            id="city" 
+                            name="city" 
+                            placeholder="e.g., Paris, Tokyo, Miami"
+                            required
+                            autocomplete="off"
+                        >
+                        <div class="suggestions" id="citySuggestions"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="season">When are you visiting?</label>
+                        <select id="season" name="season" required>
+                            <option value="">Select a season</option>
+                            <option value="Spring (March-May)">Spring (March-May)</option>
+                            <option value="Summer (June-August)">Summer (June-August)</option>
+                            <option value="Fall (September-November)">Fall (September-November)</option>
+                            <option value="Winter (December-February)">Winter (December-February)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="submit-btn" id="submitBtn">
+                        <span class="btn-text">Get Style Advice</span>
+                        <div class="loading-spinner"></div>
+                    </button>
+                </form>
+
+                <div class="provider-info">
+                    <small>
+                        Powered by: <span id="currentProvider">OpenAI</span>
+                        <button class="provider-switch" id="providerSwitch" title="Switch AI Provider">⚙️</button>
+                    </small>
+                </div>
+            </section>
+
+            <section class="results-section" id="results" style="display: none;">
+                <div class="results-header">
+                    <h2>Your Style Guide for <span id="resultCity"></span> in <span id="resultSeason"></span></h2>
+                </div>
+
+                <div class="advice-container" id="adviceContainer">
+                    <!-- Style advice will be inserted here -->
+                </div>
+
+                <div class="outfit-section" id="outfitSection" style="display: none;">
+                    <!-- Outfit images will be dynamically inserted here -->
+                </div>
+
+                <div class="actions">
+                    <button class="action-btn secondary" id="newSearchBtn">
+                        New Search
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 StyleScout. Created by Robert Beall.</p>
+        </footer>
+    </div>
+
+    <!-- Provider Modal -->
+    <div class="modal" id="providerModal">
+        <div class="modal-content">
+            <h3>Choose AI Provider</h3>
+            <div id="providerList"></div>
+            <button class="modal-close" id="modalClose">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div class="modal" id="feedbackModal">
+        <div class="modal-content feedback-modal">
+            <h3>How was your experience?</h3>
+            
+            <div class="rating-section">
+                <p>Rate your experience:</p>
+                <div class="star-rating" id="starRating">
+                    <span class="star" data-rating="1">☆</span>
+                    <span class="star" data-rating="2">☆</span>
+                    <span class="star" data-rating="3">☆</span>
+                    <span class="star" data-rating="4">☆</span>
+                    <span class="star" data-rating="5">☆</span>
+                </div>
+            </div>
+
+            <div class="feedback-options">
+                <p>What did you like? (select all that apply)</p>
+                <div id="feedbackOptions" class="feedback-checkboxes">
+                    <!-- Options will be loaded dynamically -->
+                </div>
+            </div>
+
+            <div class="feedback-text">
+                <label for="feedbackText">Additional comments (optional):</label>
+                <textarea 
+                    id="feedbackText" 
+                    maxlength="500" 
+                    rows="3" 
+                    placeholder="Tell us more about your experience..."
+                ></textarea>
+                <small class="char-count"><span id="charCount">0</span>/500</small>
+            </div>
+
+            <div class="feedback-actions">
+                <button class="btn secondary" id="cancelFeedback">Cancel</button>
+                <button class="btn primary" id="submitFeedback" disabled>Submit Feedback</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Button -->
+    <button class="feedback-btn" id="feedbackBtn" title="Give Feedback">
+        <span>💬</span>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="/js/rate-limit-handler.js"></script>
+    <script src="/js/app.js"></script>
+    <script src="/js/feedback.js"></script>
+</body>
+</html>

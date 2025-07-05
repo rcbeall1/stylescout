@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StyleScout - Feedback Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --bg-gray: #f9fafb;
+            --border-color: #e5e7eb;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-gray);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+        }
+
+        .auth-section {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 32px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .auth-form {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .form-group {
+            flex: 1;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        button {
+            padding: 10px 24px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            background: #4338ca;
+        }
+
+        .error {
+            color: #ef4444;
+            margin-top: 8px;
+            font-size: 14px;
+        }
+
+        .dashboard {
+            display: none;
+        }
+
+        .dashboard.active {
+            display: block;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .rating-distribution {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 32px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .rating-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            gap: 12px;
+        }
+
+        .rating-stars {
+            width: 80px;
+            color: #ffd700;
+        }
+
+        .rating-progress {
+            flex: 1;
+            height: 8px;
+            background: var(--bg-gray);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .rating-fill {
+            height: 100%;
+            background: var(--primary-color);
+            transition: width 0.3s ease;
+        }
+
+        .rating-count {
+            width: 40px;
+            text-align: right;
+            color: var(--text-secondary);
+        }
+
+        .feedback-list {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .feedback-item {
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .feedback-item:last-child {
+            border-bottom: none;
+        }
+
+        .feedback-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .feedback-rating {
+            color: #ffd700;
+        }
+
+        .feedback-date {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .feedback-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .option-tag {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #ede9fe;
+            color: var(--primary-color);
+            border-radius: 16px;
+            font-size: 12px;
+        }
+
+        .feedback-text {
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 48px;
+            color: var(--text-secondary);
+        }
+
+        h2 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>StyleScout Feedback Admin</h1>
+        <p class="subtitle">View and analyze user feedback</p>
+
+        <!-- Authentication Section -->
+        <div class="auth-section" id="authSection">
+            <form id="authForm" class="auth-form">
+                <div class="form-group">
+                    <label for="adminToken">Admin Token</label>
+                    <input 
+                        type="password" 
+                        id="adminToken" 
+                        placeholder="Enter admin token"
+                        required
+                    >
+                </div>
+                <button type="submit">Access Dashboard</button>
+            </form>
+            <div class="error" id="authError"></div>
+        </div>
+
+        <!-- Dashboard Section -->
+        <div class="dashboard" id="dashboard">
+            <!-- Stats Grid -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalFeedback">0</div>
+                    <div class="stat-label">Total Feedback</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avgRating">0.0</div>
+                    <div class="stat-label">Average Rating</div>
+                </div>
+            </div>
+
+            <!-- Rating Distribution -->
+            <div class="rating-distribution">
+                <h2>Rating Distribution</h2>
+                <div id="ratingBars"></div>
+            </div>
+
+            <!-- Option Counts -->
+            <div class="rating-distribution">
+                <h2>Feedback Options</h2>
+                <div id="optionStats"></div>
+            </div>
+
+            <!-- Recent Feedback -->
+            <div class="feedback-list">
+                <h2>Recent Feedback</h2>
+                <div id="feedbackList">
+                    <div class="loading">Loading feedback...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elements
+        const authForm = document.getElementById('authForm');
+        const authSection = document.getElementById('authSection');
+        const dashboard = document.getElementById('dashboard');
+        const authError = document.getElementById('authError');
+        const adminTokenInput = document.getElementById('adminToken');
+
+        // Check for saved token
+        const savedToken = sessionStorage.getItem('adminToken');
+        if (savedToken) {
+            loadDashboard(savedToken);
+        }
+
+        // Auth form submission
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = adminTokenInput.value;
+            
+            try {
+                await loadDashboard(token);
+                sessionStorage.setItem('adminToken', token);
+            } catch (error) {
+                authError.textContent = 'Invalid admin token';
+                adminTokenInput.value = '';
+            }
+        });
+
+        // Load dashboard
+        async function loadDashboard(token) {
+            try {
+                const response = await fetch('/api/feedback/admin', {
+                    headers: {
+                        'x-admin-token': token
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Unauthorized');
+                }
+
+                const data = await response.json();
+                displayDashboard(data);
+                
+                authSection.style.display = 'none';
+                dashboard.classList.add('active');
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        // Display dashboard data
+        function displayDashboard(data) {
+            // Update stats
+            document.getElementById('totalFeedback').textContent = data.summary.totalFeedback;
+            document.getElementById('avgRating').textContent = data.summary.averageRating;
+
+            // Rating distribution
+            const ratingBars = document.getElementById('ratingBars');
+            ratingBars.innerHTML = '';
+            
+            for (let i = 5; i >= 1; i--) {
+                const count = data.summary.ratingDistribution[i];
+                const percentage = data.summary.totalFeedback > 0 
+                    ? (count / data.summary.totalFeedback * 100).toFixed(1)
+                    : 0;
+                
+                ratingBars.innerHTML += `
+                    <div class="rating-bar">
+                        <div class="rating-stars">${'★'.repeat(i)}</div>
+                        <div class="rating-progress">
+                            <div class="rating-fill" style="width: ${percentage}%"></div>
+                        </div>
+                        <div class="rating-count">${count}</div>
+                    </div>
+                `;
+            }
+
+            // Option stats
+            const optionStats = document.getElementById('optionStats');
+            optionStats.innerHTML = '';
+            
+            Object.entries(data.summary.optionCounts).forEach(([option, count]) => {
+                const label = option.split('-').map(word => 
+                    word.charAt(0).toUpperCase() + word.slice(1)
+                ).join(' ');
+                
+                optionStats.innerHTML += `
+                    <div class="rating-bar">
+                        <div style="width: 200px">${label}</div>
+                        <div class="rating-progress">
+                            <div class="rating-fill" style="width: ${(count / data.summary.totalFeedback * 100).toFixed(1)}%"></div>
+                        </div>
+                        <div class="rating-count">${count}</div>
+                    </div>
+                `;
+            });
+
+            // Recent feedback
+            const feedbackList = document.getElementById('feedbackList');
+            feedbackList.innerHTML = '';
+            
+            if (data.recentFeedback.length === 0) {
+                feedbackList.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No feedback yet</p>';
+            } else {
+                data.recentFeedback.forEach(feedback => {
+                    const date = new Date(feedback.timestamp).toLocaleString();
+                    const stars = '★'.repeat(feedback.rating) + '☆'.repeat(5 - feedback.rating);
+                    
+                    feedbackList.innerHTML += `
+                        <div class="feedback-item">
+                            <div class="feedback-header">
+                                <div class="feedback-rating">${stars}</div>
+                                <div class="feedback-date">${date}</div>
+                            </div>
+                            ${feedback.options.length > 0 ? `
+                                <div class="feedback-options">
+                                    ${feedback.options.map(opt => {
+                                        const label = opt.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                                        return `<span class="option-tag">${label}</span>`;
+                                    }).join('')}
+                                </div>
+                            ` : ''}
+                            ${feedback.textFeedback ? `
+                                <div class="feedback-text">"${feedback.textFeedback}"</div>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+            }
+        }
+    </script>
+</body>
+</html>
