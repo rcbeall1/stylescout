@@ -139,6 +139,137 @@ app.post('/api/style-advice', rateLimitMiddleware('requests'), async (req, res) 
   }
 });
 
+// New streaming endpoint for style advice
+app.post('/api/style-advice-stream', rateLimitMiddleware('requests'), async (req, res) => {
+  const { city, season } = req.body;
+  
+  if (!city || !season) {
+    return res.status(400).json({ error: 'City and season are required' });
+  }
+
+  // Set headers for SSE
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no' // Disable Nginx buffering if present
+  });
+
+  // Send initial status
+  res.write(`data: ${JSON.stringify({ status: 'starting', message: 'Initializing fashion consultant...' })}\n\n`);
+
+  try {
+    // Get AI provider
+    const provider = getAIProvider();
+    
+    // Send status update
+    res.write(`data: ${JSON.stringify({ status: 'searching', message: `🔍 Searching for current weather in ${city}...` })}\n\n`);
+    
+    // Generate style advice
+    const startTime = Date.now();
+    const advice = await provider.getStyleAdvice(city, season);
+    const adviceTime = Date.now() - startTime;
+    
+    // Send status update
+    res.write(`data: ${JSON.stringify({ 
+      status: 'advice_complete', 
+      message: '✨ Style advice generated!',
+      advice: advice,
+      timeTaken: adviceTime
+    })}\n\n`);
+
+    // Generate outfit images
+    let outfitImages = [];
+    const SKIP_IMAGE_GENERATION = false;
+    
+    if (!SKIP_IMAGE_GENERATION) {
+      try {
+        const openAIProvider = ProviderFactory.create('openai', process.env.OPENAI_API_KEY);
+        
+        const outfitPrompts = [
+          `${season} casual outfit flat lay for ${city}: Relaxed daywear that locals actually wear. Include denim, comfortable shoes, and practical accessories. Realistic style, natural lighting.`,
+          `${season} smart casual outfit for ${city}: Versatile pieces for lunch, shopping, or casual dinner. Balance between comfort and style. Include transitional pieces that work day to night.`,
+          `${season} active lifestyle outfit for ${city}: Athletic-inspired streetwear for walking, exploring, or outdoor activities. Include sneakers, breathable fabrics, and functional accessories.`
+        ];
+        
+        // Generate images one by one with status updates
+        for (let i = 0; i < outfitPrompts.length; i++) {
+          res.write(`data: ${JSON.stringify({ 
+            status: 'generating_image', 
+            message: `🎨 Creating outfit inspiration ${i + 1} of 3...`,
+            imageIndex: i
+          })}\n\n`);
+          
+          try {
+            const imageStartTime = Date.now();
+            const imageUrl = await openAIProvider.generateOutfitImage(outfitPrompts[i]);
+            const imageTime = Date.now() - imageStartTime;
+            
+            outfitImages.push({ url: imageUrl, prompt: outfitPrompts[i] });
+            
+            res.write(`data: ${JSON.stringify({ 
+              status: 'image_complete', 
+              message: `✅ Outfit ${i + 1} created!`,
+              imageIndex: i,
+              imageUrl: imageUrl,
+              timeTaken: imageTime
+            })}\n\n`);
+          } catch (error) {
+            console.error(`Failed to generate image ${i + 1}:`, error.message);
+            res.write(`data: ${JSON.stringify({ 
+              status: 'image_failed', 
+              message: `⚠️ Couldn't generate outfit ${i + 1}`,
+              imageIndex: i,
+              error: error.message
+            })}\n\n`);
+          }
+        }
+      } catch (error) {
+        console.error('Error generating outfit images:', error);
+        res.write(`data: ${JSON.stringify({ 
+          status: 'images_error', 
+          message: '⚠️ Could not generate outfit images',
+          error: error.message
+        })}\n\n`);
+      }
+    }
+    
+    // Increment usage counters
+    await incrementUsage(req);
+    if (outfitImages.length > 0) {
+      req.rateLimitProvider = 'openai';
+      req.rateLimitType = 'images';
+      await incrementUsage(req);
+    }
+    
+    // Send final complete event
+    res.write(`data: ${JSON.stringify({ 
+      status: 'complete',
+      message: '✅ All done!',
+      result: {
+        success: true,
+        city,
+        season,
+        advice,
+        outfitImages,
+        provider: process.env.AI_PROVIDER || 'openai'
+      }
+    })}\n\n`);
+    
+    res.write('event: close\ndata: \n\n');
+    res.end();
+    
+  } catch (error) {
+    console.error('Error in streaming endpoint:', error);
+    res.write(`data: ${JSON.stringify({ 
+      status: 'error',
+      message: '❌ An error occurred',
+      error: error.message || 'Failed to get style advice'
+    })}\n\n`);
+    res.end();
+  }
+});
+
 app.post('/api/generate-outfit', rateLimitMiddleware('images'), async (req, res) => {
   try {
     const { city, season, description } = req.body;
@@ -177,6 +308,17 @@ app.post('/api/generate-outfit', rateLimitMiddleware('images'), async (req, res)
 // Serve the frontend
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+});
+
+// Simple test endpoint
+app.get('/api/test', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    provider: process.env.AI_PROVIDER,
+    hasGoogleKey: !!process.env.GOOGLE_API_KEY,
+    hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY,
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Error handling middleware

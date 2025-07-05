@@ -82,55 +82,17 @@ form.addEventListener('submit', async (e) => {
     // Set the location and season immediately so it's not empty
     document.getElementById('resultCity').textContent = city;
     document.getElementById('resultSeason').textContent = season;
-    adviceContainer.innerHTML = '<div class="loading-status">🔍 Searching for current weather in ' + city + '...</div>';
+    adviceContainer.innerHTML = '<div class="loading-status">🔍 Initializing fashion consultant...</div>';
     document.getElementById('outfitSection').style.display = 'none';
     results.scrollIntoView({ behavior: 'smooth', block: 'start' });
     
-    // Progressive status updates with more steps
-    const loadingSteps = [
-        { delay: 2000, icon: '🛍️', text: 'Finding trending stores and boutiques in ' + city + '...' },
-        { delay: 3500, icon: '📍', text: 'Checking local Instagram fashion accounts...' },
-        { delay: 5000, icon: '👗', text: 'Analyzing current fashion trends for ' + season + '...' },
-        { delay: 6500, icon: '🌡️', text: 'Reviewing weather patterns and humidity levels...' },
-        { delay: 8000, icon: '💰', text: 'Researching local price ranges and deals...' },
-        { delay: 9500, icon: '✨', text: 'Creating your personalized style guide...' },
-        { delay: 11000, icon: '🎨', text: 'Generating outfit inspirations...' },
-        { delay: 13000, icon: '📝', text: 'Finalizing recommendations...' }
-    ];
-    
-    // Store timeouts so we can cancel them if response comes early
-    const timeouts = [];
-    
-    loadingSteps.forEach(step => {
-        const timeout = setTimeout(() => {
-            const currentStatus = document.querySelector('.loading-status');
-            if (currentStatus) {
-                adviceContainer.innerHTML = '<div class="loading-status">' + step.icon + ' ' + step.text + '</div>';
-            }
-        }, step.delay);
-        timeouts.push(timeout);
-    });
-    
-    // Add a cycling dots animation after the last step
-    setTimeout(() => {
-        const currentStatus = document.querySelector('.loading-status');
-        if (currentStatus) {
-            let dots = 0;
-            const dotInterval = setInterval(() => {
-                if (document.querySelector('.loading-status')) {
-                    dots = (dots + 1) % 4;
-                    const dotText = '.'.repeat(dots);
-                    const baseText = currentStatus.textContent.replace(/\.+$/, '');
-                    currentStatus.textContent = baseText + dotText;
-                } else {
-                    clearInterval(dotInterval);
-                }
-            }, 500);
-        }
-    }, 14000);
+    // Create EventSource for streaming
+    let eventSource = null;
+    let outfitImages = [];
     
     try {
-        const response = await fetch('/api/style-advice', {
+        // First, we need to get a session ID by initiating the request
+        const response = await fetch('/api/style-advice-stream', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -138,31 +100,102 @@ form.addEventListener('submit', async (e) => {
             body: JSON.stringify({ city, season })
         });
         
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.error || 'Failed to get style advice');
+        // Check if response is SSE
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/event-stream')) {
+            // We need to use EventSource with a different approach
+            // Since EventSource doesn't support POST, we'll use the fetch response directly
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            
+            let buffer = '';
+            
+            const processEvent = (data) => {
+                try {
+                    const event = JSON.parse(data);
+                    
+                    // Update loading status based on event
+                    if (event.status === 'starting' || event.status === 'searching' || 
+                        event.status === 'generating_image' || event.status === 'image_complete' ||
+                        event.status === 'image_failed') {
+                        adviceContainer.innerHTML = `<div class="loading-status">${event.message}</div>`;
+                    }
+                    
+                    // Handle advice completion
+                    if (event.status === 'advice_complete') {
+                        // Store the advice but don't display yet
+                        currentStyleData = {
+                            advice: event.advice,
+                            city: city,
+                            season: season
+                        };
+                    }
+                    
+                    // Handle image completion
+                    if (event.status === 'image_complete' && event.imageUrl) {
+                        outfitImages.push({ url: event.imageUrl });
+                    }
+                    
+                    // Handle final completion
+                    if (event.status === 'complete' && event.result) {
+                        currentStyleData = event.result;
+                        displayResults(event.result);
+                    }
+                    
+                    // Handle errors
+                    if (event.status === 'error') {
+                        throw new Error(event.error || 'Failed to get style advice');
+                    }
+                } catch (e) {
+                    console.error('Error processing event:', e);
+                }
+            };
+            
+            // Read the stream
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+                
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6);
+                        if (data.trim()) {
+                            processEvent(data);
+                        }
+                    } else if (line.startsWith('event: close')) {
+                        break;
+                    }
+                }
+            }
+        } else {
+            // Fallback to regular response
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to get style advice');
+            }
+            currentStyleData = data;
+            displayResults(data);
         }
-        
-        // Store current data
-        currentStyleData = data;
-        
-        // Display results
-        displayResults(data);
         
     } catch (error) {
         console.error('Error:', error);
         
         // Check if it's a rate limit error
-        if (response && response.status === 429) {
-            const errorData = await response.json();
-            RateLimitHandler.showRateLimitError(errorData);
+        if (error.message && error.message.includes('429')) {
+            RateLimitHandler.showRateLimitError({ error: error.message });
         } else {
             alert(error.message || 'Failed to get style advice. Please try again.');
         }
     } finally {
         submitBtn.disabled = false;
         submitBtn.classList.remove('loading');
+        if (eventSource) {
+            eventSource.close();
+        }
     }
 });
 
