@@ -90,6 +90,9 @@ form.addEventListener('submit', async (e) => {
     let eventSource = null;
     let outfitImages = [];
     
+    // Reset current style data for this request
+    currentStyleData = { advice: null };
+    
     try {
         // First, we need to get a session ID by initiating the request
         const response = await fetch('/api/style-advice-stream', {
@@ -115,10 +118,20 @@ form.addEventListener('submit', async (e) => {
                     const event = JSON.parse(data);
                     
                     // Update loading status based on event
-                    if (event.status === 'starting' || event.status === 'searching' || 
-                        event.status === 'processing' || event.status === 'generating_image' || 
-                        event.status === 'image_complete' || event.status === 'image_failed') {
+                    // Only update if we haven't displayed the advice yet
+                    if ((event.status === 'starting' || event.status === 'searching' || 
+                        event.status === 'processing') && !currentStyleData.advice) {
                         adviceContainer.innerHTML = `<div class="loading-status">${event.message}</div>`;
+                    }
+                    
+                    // Don't overwrite advice with image generation messages
+                    if ((event.status === 'generating_image' || event.status === 'image_failed') && 
+                        currentStyleData.advice) {
+                        // Update only the specific image placeholder, not the advice
+                        const placeholders = document.querySelectorAll('.outfit-placeholder p');
+                        if (placeholders[event.imageIndex]) {
+                            placeholders[event.imageIndex].textContent = event.message.replace(/[🎨✅⚠️]/g, '').trim();
+                        }
                     }
                     
                     // Handle advice completion - display immediately!
