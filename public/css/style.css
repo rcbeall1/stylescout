@@ -552,6 +552,29 @@ input[type="text"]::placeholder {
     margin: 0;
 }
 
+/* Placeholder styles for loading images */
+.outfit-image-card.placeholder {
+    background: var(--bg-tertiary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.outfit-placeholder {
+    text-align: center;
+    padding: 40px;
+}
+
+.outfit-placeholder p {
+    margin-top: 20px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.outfit-placeholder .loading-spinner {
+    margin: 0 auto;
+}
+
 /* Improved advice container structure */
 .advice-container {
     background: var(--bg-primary);

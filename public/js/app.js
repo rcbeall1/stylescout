@@ -121,25 +121,64 @@ form.addEventListener('submit', async (e) => {
                         adviceContainer.innerHTML = `<div class="loading-status">${event.message}</div>`;
                     }
                     
-                    // Handle advice completion
+                    // Handle advice completion - display immediately!
                     if (event.status === 'advice_complete') {
-                        // Store the advice but don't display yet
                         currentStyleData = {
                             advice: event.advice,
                             city: city,
-                            season: season
+                            season: season,
+                            outfitImages: []
                         };
+                        // Display the advice immediately
+                        displayResults(currentStyleData);
+                        
+                        // Show placeholder for images
+                        const outfitSection = document.getElementById('outfitSection');
+                        outfitSection.innerHTML = `
+                            <h3>Outfit Inspiration</h3>
+                            <div class="outfit-images-grid">
+                                <div class="outfit-image-card placeholder">
+                                    <div class="outfit-placeholder">
+                                        <div class="loading-spinner"></div>
+                                        <p>Generating outfit 1...</p>
+                                    </div>
+                                </div>
+                                <div class="outfit-image-card placeholder">
+                                    <div class="outfit-placeholder">
+                                        <div class="loading-spinner"></div>
+                                        <p>Generating outfit 2...</p>
+                                    </div>
+                                </div>
+                                <div class="outfit-image-card placeholder">
+                                    <div class="outfit-placeholder">
+                                        <div class="loading-spinner"></div>
+                                        <p>Generating outfit 3...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        outfitSection.style.display = 'block';
                     }
                     
-                    // Handle image completion
+                    // Handle image completion - update specific image
                     if (event.status === 'image_complete' && event.imageUrl) {
                         outfitImages.push({ url: event.imageUrl });
+                        
+                        // Update the specific image placeholder
+                        const placeholders = document.querySelectorAll('.outfit-image-card.placeholder');
+                        if (placeholders[event.imageIndex]) {
+                            placeholders[event.imageIndex].classList.remove('placeholder');
+                            placeholders[event.imageIndex].innerHTML = `
+                                <img src="${event.imageUrl}" alt="Outfit ${event.imageIndex + 1}" loading="lazy">
+                                <p class="outfit-caption">${getOutfitCaption(event.imageIndex)}</p>
+                            `;
+                        }
                     }
                     
                     // Handle final completion
                     if (event.status === 'complete' && event.result) {
                         currentStyleData = event.result;
-                        displayResults(event.result);
+                        // Images are already displayed progressively, so we're done!
                     }
                     
                     // Handle errors
