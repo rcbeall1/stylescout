@@ -220,38 +220,55 @@ app.post('/api/style-advice-stream', rateLimitMiddleware('requests'), async (req
           `${season} active lifestyle outfit for ${city}: Athletic-inspired streetwear for walking, exploring, or outdoor activities. Include sneakers, breathable fabrics, and functional accessories.`
         ];
         
-        // Generate images one by one with status updates
+        // Send initial status for all images
         for (let i = 0; i < outfitPrompts.length; i++) {
           res.write(`data: ${JSON.stringify({ 
             status: 'generating_image', 
             message: `🎨 Creating outfit inspiration ${i + 1} of 3...`,
             imageIndex: i
           })}\n\n`);
-          
+        }
+        
+        // Generate all images in parallel for speed
+        const imagePromises = outfitPrompts.map(async (prompt, index) => {
           try {
             const imageStartTime = Date.now();
-            const imageUrl = await openAIProvider.generateOutfitImage(outfitPrompts[i]);
+            
+            // Add timeout for image generation (30 seconds per image)
+            const imagePromise = openAIProvider.generateOutfitImage(prompt);
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Image generation timed out after 30 seconds')), 30000)
+            );
+            
+            const imageUrl = await Promise.race([imagePromise, timeoutPromise]);
             const imageTime = Date.now() - imageStartTime;
             
-            outfitImages.push({ url: imageUrl, prompt: outfitPrompts[i] });
-            
+            // Send success update
             res.write(`data: ${JSON.stringify({ 
               status: 'image_complete', 
-              message: `✅ Outfit ${i + 1} created!`,
-              imageIndex: i,
+              message: `✅ Outfit ${index + 1} created!`,
+              imageIndex: index,
               imageUrl: imageUrl,
               timeTaken: imageTime
             })}\n\n`);
+            
+            return { url: imageUrl, prompt };
           } catch (error) {
-            console.error(`Failed to generate image ${i + 1}:`, error.message);
+            console.error(`Failed to generate image ${index + 1}:`, error.message);
+            // Send failure update
             res.write(`data: ${JSON.stringify({ 
               status: 'image_failed', 
-              message: `⚠️ Couldn't generate outfit ${i + 1}`,
-              imageIndex: i,
+              message: `⚠️ Couldn't generate outfit ${index + 1}: ${error.message}`,
+              imageIndex: index,
               error: error.message
             })}\n\n`);
+            return null;
           }
-        }
+        });
+        
+        // Wait for all images to complete (success or failure)
+        const results = await Promise.all(imagePromises);
+        outfitImages = results.filter(img => img !== null);
       } catch (error) {
         console.error('Error generating outfit images:', error);
         res.write(`data: ${JSON.stringify({ 
