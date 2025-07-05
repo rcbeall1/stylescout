@@ -7,7 +7,7 @@ class AnthropicProvider extends BaseAIProvider {
     this.client = new Anthropic({ apiKey });
   }
 
-  async getStyleAdvice(city, season) {
+  async getStyleAdvice(city, season, retryCount = 0) {
     try {
       const response = await this.client.messages.create({
         model: 'claude-opus-4-20250514', // Using latest Opus 4 model
@@ -38,12 +38,11 @@ IMPORTANT: Format your response in proper markdown with:
             content: this.formatStylePrompt(city, season)
           }
         ],
-        // Temporarily disable web search tool for debugging
-        // tools: [{
-        //   type: 'web_search_20250305',
-        //   name: 'web_search',
-        //   max_uses: 25  // Increased to match Gemini's extensive search capability
-        // }]
+        tools: [{
+          type: 'web_search_20250305',
+          name: 'web_search',
+          max_uses: 25  // Increased to match Gemini's extensive search capability
+        }]
       });
 
       // Handle response which may contain both text and tool use
@@ -82,6 +81,15 @@ IMPORTANT: Format your response in proper markdown with:
         apiKeyExists: !!this.apiKey,
         apiKeyPrefix: this.apiKey ? this.apiKey.substring(0, 10) + '...' : 'none'
       });
+      
+      // Handle 529 overloaded errors with retry
+      if (error.status === 529 && retryCount < 3) {
+        const waitTime = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        console.log(`Anthropic overloaded (529), retrying in ${waitTime}ms...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        return this.getStyleAdvice(city, season, retryCount + 1);
+      }
+      
       throw new Error(`Failed to get style advice from Claude: ${error.message}`);
     }
   }
