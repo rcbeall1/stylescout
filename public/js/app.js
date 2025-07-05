@@ -116,8 +116,8 @@ form.addEventListener('submit', async (e) => {
                     
                     // Update loading status based on event
                     if (event.status === 'starting' || event.status === 'searching' || 
-                        event.status === 'generating_image' || event.status === 'image_complete' ||
-                        event.status === 'image_failed') {
+                        event.status === 'processing' || event.status === 'generating_image' || 
+                        event.status === 'image_complete' || event.status === 'image_failed') {
                         adviceContainer.innerHTML = `<div class="loading-status">${event.message}</div>`;
                     }
                     

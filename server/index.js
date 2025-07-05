@@ -165,9 +165,37 @@ app.post('/api/style-advice-stream', rateLimitMiddleware('requests'), async (req
     // Send status update
     res.write(`data: ${JSON.stringify({ status: 'searching', message: `🔍 Searching for current weather in ${city}...` })}\n\n`);
     
+    // Set up periodic keepalive messages during long API calls
+    const keepAliveMessages = [
+      { delay: 5000, message: `🛍️ Finding trending stores and boutiques in ${city}...` },
+      { delay: 10000, message: `📍 Checking local Instagram fashion accounts...` },
+      { delay: 15000, message: `👗 Analyzing current fashion trends for ${season}...` },
+      { delay: 20000, message: `🌡️ Reviewing weather patterns and humidity levels...` },
+      { delay: 30000, message: `💰 Researching local price ranges and deals...` },
+      { delay: 40000, message: `✨ Creating your personalized style guide...` },
+      { delay: 50000, message: `📝 Finalizing recommendations...` },
+      { delay: 60000, message: `⏳ Almost there, adding final touches...` },
+      { delay: 70000, message: `🔍 Double-checking local insights...` },
+      { delay: 80000, message: `📋 Compiling your complete style guide...` }
+    ];
+    
+    const keepAliveIntervals = [];
+    keepAliveMessages.forEach(({ delay, message }) => {
+      const interval = setTimeout(() => {
+        res.write(`data: ${JSON.stringify({ status: 'processing', message })}\n\n`);
+      }, delay);
+      keepAliveIntervals.push(interval);
+    });
+    
     // Generate style advice
     const startTime = Date.now();
-    const advice = await provider.getStyleAdvice(city, season);
+    let advice;
+    try {
+      advice = await provider.getStyleAdvice(city, season);
+    } finally {
+      // Clear all keepalive intervals
+      keepAliveIntervals.forEach(interval => clearTimeout(interval));
+    }
     const adviceTime = Date.now() - startTime;
     
     // Send status update
