@@ -32,6 +32,10 @@ const FEEDBACK_OPTIONS = [
 // Initialize feedback file if it doesn't exist
 async function initFeedbackFile() {
   try {
+    // Ensure directory exists first
+    const dir = path.dirname(FEEDBACK_FILE);
+    await fs.mkdir(dir, { recursive: true });
+    
     await fs.access(FEEDBACK_FILE);
   } catch {
     await fs.writeFile(FEEDBACK_FILE, JSON.stringify({ feedback: [] }, null, 2));
