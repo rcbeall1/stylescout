@@ -4,6 +4,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const validator = require('validator');
 const rateLimit = require('express-rate-limit');
+const axios = require('axios');
 
 // Feedback file path
 const FEEDBACK_FILE = path.join(__dirname, '..', 'data', 'feedback.json');
@@ -127,6 +128,52 @@ router.post('/submit', feedbackLimiter, async (req, res) => {
     
     // Write back to file
     await fs.writeFile(FEEDBACK_FILE, JSON.stringify(data, null, 2));
+    
+    // Send Discord notification if webhook is configured
+    if (process.env.DISCORD_WEBHOOK_URL) {
+      try {
+        const stars = '⭐'.repeat(feedbackEntry.rating);
+        const selectedOptions = feedbackEntry.options.map(opt => 
+          `• ${opt.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}`
+        ).join('\n');
+        
+        await axios.post(process.env.DISCORD_WEBHOOK_URL, {
+          embeds: [{
+            title: 'New StyleScout Feedback!',
+            color: feedbackEntry.rating >= 4 ? 0x00ff00 : feedbackEntry.rating >= 3 ? 0xffff00 : 0xff0000,
+            fields: [
+              {
+                name: 'Rating',
+                value: `${stars} (${feedbackEntry.rating}/5)`,
+                inline: true
+              },
+              {
+                name: 'Time',
+                value: new Date(feedbackEntry.timestamp).toLocaleString(),
+                inline: true
+              },
+              {
+                name: 'Feedback Options',
+                value: selectedOptions || 'None selected',
+                inline: false
+              },
+              {
+                name: 'Comment',
+                value: feedbackEntry.textFeedback || '*No comment provided*',
+                inline: false
+              }
+            ],
+            footer: {
+              text: 'StyleScout Feedback System'
+            },
+            timestamp: new Date().toISOString()
+          }]
+        });
+      } catch (error) {
+        console.error('Failed to send Discord notification:', error.message);
+        // Don't fail the feedback submission if Discord fails
+      }
+    }
     
     res.json({ success: true, message: 'Thank you for your feedback!' });
   } catch (error) {
