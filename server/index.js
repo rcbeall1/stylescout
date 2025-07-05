@@ -76,7 +76,7 @@ app.post('/api/style-advice', rateLimitMiddleware('requests'), async (req, res) 
     let outfitImages = [];
     
     // TEMPORARILY DISABLED FOR DEBUGGING
-    const SKIP_IMAGE_GENERATION = true;
+    const SKIP_IMAGE_GENERATION = false;
     
     if (!SKIP_IMAGE_GENERATION) {
     try {
