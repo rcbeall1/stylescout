@@ -62,6 +62,18 @@ function sanitizeText(text) {
   return sanitized.trim();
 }
 
+// Decode HTML entities for Discord display
+function decodeForDiscord(text) {
+  if (!text) return '';
+  return text
+    .replace(/&#x27;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#x2F;/g, '/');
+}
+
 // Validate feedback data
 function validateFeedback(data) {
   const errors = [];
@@ -159,7 +171,7 @@ router.post('/submit', feedbackLimiter, async (req, res) => {
               },
               {
                 name: 'Comment',
-                value: feedbackEntry.textFeedback || '*No comment provided*',
+                value: decodeForDiscord(feedbackEntry.textFeedback) || '*No comment provided*',
                 inline: false
               }
             ],
