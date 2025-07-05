@@ -234,10 +234,10 @@ app.post('/api/style-advice-stream', rateLimitMiddleware('requests'), async (req
           try {
             const imageStartTime = Date.now();
             
-            // Add timeout for image generation (30 seconds per image)
+            // Add timeout for image generation (60 seconds per image)
             const imagePromise = openAIProvider.generateOutfitImage(prompt);
             const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Image generation timed out after 30 seconds')), 30000)
+              setTimeout(() => reject(new Error('Image generation timed out after 60 seconds')), 60000)
             );
             
             const imageUrl = await Promise.race([imagePromise, timeoutPromise]);
