@@ -38,11 +38,12 @@ IMPORTANT: Format your response in proper markdown with:
             content: this.formatStylePrompt(city, season)
           }
         ],
-        tools: [{
-          type: 'web_search_20250305',
-          name: 'web_search',
-          max_uses: 25  // Increased to match Gemini's extensive search capability
-        }]
+        // Temporarily disable web search tool for debugging
+        // tools: [{
+        //   type: 'web_search_20250305',
+        //   name: 'web_search',
+        //   max_uses: 25  // Increased to match Gemini's extensive search capability
+        // }]
       });
 
       // Handle response which may contain both text and tool use
@@ -74,7 +75,14 @@ IMPORTANT: Format your response in proper markdown with:
       return finalText || 'Unable to generate style advice';
     } catch (error) {
       console.error('Anthropic API error:', error);
-      throw new Error('Failed to get style advice from Claude');
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        type: error.error?.type,
+        apiKeyExists: !!this.apiKey,
+        apiKeyPrefix: this.apiKey ? this.apiKey.substring(0, 10) + '...' : 'none'
+      });
+      throw new Error(`Failed to get style advice from Claude: ${error.message}`);
     }
   }
 
