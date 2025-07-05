@@ -74,6 +74,11 @@ app.post('/api/style-advice', rateLimitMiddleware('requests'), async (req, res) 
     
     // Generate outfit images automatically (using OpenAI regardless of main provider)
     let outfitImages = [];
+    
+    // TEMPORARILY DISABLED FOR DEBUGGING
+    const SKIP_IMAGE_GENERATION = true;
+    
+    if (!SKIP_IMAGE_GENERATION) {
     try {
       // Always use OpenAI for image generation
       const openAIProvider = ProviderFactory.create('openai', process.env.OPENAI_API_KEY);
@@ -105,6 +110,7 @@ app.post('/api/style-advice', rateLimitMiddleware('requests'), async (req, res) 
       console.error('Error generating outfit images:', error);
       // Continue without images if generation fails
     }
+    } // End of SKIP_IMAGE_GENERATION check
     
     // Increment usage counter on success
     await incrementUsage(req);
