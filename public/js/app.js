@@ -195,18 +195,30 @@ form.addEventListener('submit', async (e) => {
                         console.log(`Received image_complete event for image ${event.imageIndex + 1}:`, event);
                         outfitImages.push({ url: event.imageUrl });
                         
+                        // Debug: Check current state of all placeholders
+                        const allCards = document.querySelectorAll('.outfit-image-card');
+                        console.log(`Total outfit cards: ${allCards.length}`);
+                        allCards.forEach((card, idx) => {
+                            console.log(`Card ${idx}: placeholder=${card.classList.contains('placeholder')}`);
+                        });
+                        
                         // Update the specific image placeholder
                         const placeholders = document.querySelectorAll('.outfit-image-card.placeholder');
                         console.log(`Found ${placeholders.length} placeholders, updating index ${event.imageIndex}`);
-                        if (placeholders[event.imageIndex]) {
-                            placeholders[event.imageIndex].classList.remove('placeholder');
-                            placeholders[event.imageIndex].innerHTML = `
+                        
+                        // Get the specific card by index from all cards
+                        const targetCard = allCards[event.imageIndex];
+                        if (targetCard && targetCard.classList.contains('placeholder')) {
+                            targetCard.classList.remove('placeholder');
+                            targetCard.innerHTML = `
                                 <img src="${event.imageUrl}" alt="Outfit ${event.imageIndex + 1}" loading="lazy">
                                 <p class="outfit-caption">${getOutfitCaption(event.imageIndex)}</p>
                             `;
-                            console.log(`Successfully updated image placeholder ${event.imageIndex}`);
+                            console.log(`Successfully updated image card at index ${event.imageIndex}`);
+                        } else if (targetCard) {
+                            console.warn(`Card at index ${event.imageIndex} is not a placeholder anymore`);
                         } else {
-                            console.error(`Could not find placeholder for image index ${event.imageIndex}`);
+                            console.error(`Could not find card at index ${event.imageIndex}`);
                         }
                     }
                     

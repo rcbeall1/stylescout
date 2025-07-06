@@ -14,6 +14,9 @@ const PORT = process.env.PORT || 3000;
 // Temporary image storage (in production, use a proper storage solution)
 const imageStorage = new Map();
 
+// Trust proxy headers (needed for Render and other cloud platforms)
+app.set('trust proxy', true);
+
 // Middleware
 app.use(cors());
 app.use(express.json());
