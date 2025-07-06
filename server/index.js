@@ -256,42 +256,14 @@ app.post('/api/style-advice-stream', rateLimitMiddleware('requests'), async (req
             const imageUrl = await Promise.race([imagePromise, timeoutPromise]);
             const imageTime = Date.now() - imageStartTime;
             
-            // Send success update - chunk large base64 data
-            const imageData = {
+            // Send success update
+            res.write(`data: ${JSON.stringify({ 
               status: 'image_complete', 
               message: `✅ Outfit ${index + 1} created!`,
               imageIndex: index,
               imageUrl: imageUrl,
               timeTaken: imageTime
-            };
-            
-            // If it's a base64 data URL and it's large, send it in chunks
-            if (imageUrl && imageUrl.startsWith('data:') && imageUrl.length > 50000) {
-              // Send notification that image is ready but data will come in chunks
-              res.write(`data: ${JSON.stringify({ 
-                status: 'image_complete', 
-                message: `✅ Outfit ${index + 1} created!`,
-                imageIndex: index,
-                imageUrl: 'CHUNKED_DATA',
-                timeTaken: imageTime
-              })}\n\n`);
-              
-              // Send the actual data in smaller chunks
-              const chunkSize = 30000;
-              for (let i = 0; i < imageUrl.length; i += chunkSize) {
-                const chunk = imageUrl.slice(i, i + chunkSize);
-                res.write(`data: ${JSON.stringify({ 
-                  status: 'image_chunk', 
-                  imageIndex: index,
-                  chunk: chunk,
-                  isFirst: i === 0,
-                  isLast: i + chunkSize >= imageUrl.length
-                })}\n\n`);
-              }
-            } else {
-              // Small image or URL, send normally
-              res.write(`data: ${JSON.stringify(imageData)}\n\n`);
-            }
+            })}\n\n`);
             
             return { url: imageUrl, prompt };
           } catch (error) {
