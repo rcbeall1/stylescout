@@ -217,7 +217,7 @@ app.post('/api/style-advice-stream', rateLimitMiddleware('requests'), async (req
         const outfitPrompts = [
           `${season} casual outfit flat lay for ${city}: Relaxed daywear that locals actually wear. Include denim, comfortable shoes, and practical accessories. Realistic style, natural lighting.`,
           `${season} smart casual outfit for ${city}: Versatile pieces for lunch, shopping, or casual dinner. Balance between comfort and style. Include transitional pieces that work day to night.`,
-          `${season} active lifestyle outfit for ${city}: Athletic-inspired streetwear for walking, exploring, or outdoor activities. Include sneakers, breathable fabrics, and functional accessories.`
+          `${season} active outfit for ${city}: Simple athletic wear with sneakers and comfortable clothes.`
         ];
         
         // Send initial status for all images
@@ -232,6 +232,11 @@ app.post('/api/style-advice-stream', rateLimitMiddleware('requests'), async (req
         // Generate all images in parallel for speed
         const imagePromises = outfitPrompts.map(async (prompt, index) => {
           try {
+            // Add a small staggered delay to avoid rate limiting (0ms, 500ms, 1000ms)
+            if (index > 0) {
+              await new Promise(resolve => setTimeout(resolve, index * 500));
+            }
+            
             const imageStartTime = Date.now();
             
             // Add timeout for image generation (60 seconds per image)
@@ -255,12 +260,20 @@ app.post('/api/style-advice-stream', rateLimitMiddleware('requests'), async (req
             return { url: imageUrl, prompt };
           } catch (error) {
             console.error(`Failed to generate image ${index + 1}:`, error.message);
+            console.error('Full error details:', error);
+            
+            // Check if it's a rate limit error
+            const isRateLimit = error.message?.includes('rate') || error.message?.includes('limit');
+            const errorMessage = isRateLimit 
+              ? 'Rate limit reached - try again later' 
+              : error.message;
+            
             // Send failure update
             res.write(`data: ${JSON.stringify({ 
               status: 'image_failed', 
-              message: `⚠️ Couldn't generate outfit ${index + 1}: ${error.message}`,
+              message: `⚠️ Couldn't generate outfit ${index + 1}: ${errorMessage}`,
               imageIndex: index,
-              error: error.message
+              error: errorMessage
             })}\n\n`);
             return null;
           }

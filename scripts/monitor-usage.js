@@ -6,7 +6,7 @@ const http = require('http');
 // Configuration
 const config = {
   baseUrl: process.env.STYLESCOUT_URL || 'http://localhost:3000',
-  adminKey: process.env.ADMIN_API_KEY || 'stylescout_admin_2025_secure_key'
+  adminKey: process.env.ADMIN_API_KEY
 };
 
 // Color codes for terminal output
