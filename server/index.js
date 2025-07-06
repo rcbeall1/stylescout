@@ -341,8 +341,20 @@ app.post('/api/style-advice-stream', rateLimitMiddleware('requests'), async (req
         // Clear the keepalive interval
         clearInterval(imageKeepAlive);
         
-        // Add a delay to ensure all image_complete events are processed
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Send a final status update to confirm all images are done
+        res.write(`data: ${JSON.stringify({ 
+          status: 'all_images_complete', 
+          message: '✨ All outfits generated!',
+          totalImages: outfitImages.length
+        })}\n\n`);
+        
+        // Force flush after sending all image events
+        if (res.flush && typeof res.flush === 'function') {
+          res.flush();
+        }
+        
+        // Add a delay to ensure all events are processed
+        await new Promise(resolve => setTimeout(resolve, 2000));
       } catch (error) {
         console.error('Error generating outfit images:', error);
         

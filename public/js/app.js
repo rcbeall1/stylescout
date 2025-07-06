@@ -88,7 +88,7 @@ form.addEventListener('submit', async (e) => {
     
     // Create EventSource for streaming
     let eventSource = null;
-    let outfitImages = [];
+    let outfitImages = new Array(3); // Pre-allocate array for 3 images
     
     // Reset current style data for this request
     currentStyleData = { advice: null };
@@ -193,32 +193,46 @@ form.addEventListener('submit', async (e) => {
                     // Handle image completion - update specific image
                     if (event.status === 'image_complete' && event.imageUrl) {
                         console.log(`Received image_complete event for image ${event.imageIndex + 1}:`, event);
-                        outfitImages.push({ url: event.imageUrl });
                         
-                        // Debug: Check current state of all placeholders
-                        const allCards = document.querySelectorAll('.outfit-image-card');
-                        console.log(`Total outfit cards: ${allCards.length}`);
-                        allCards.forEach((card, idx) => {
-                            console.log(`Card ${idx}: placeholder=${card.classList.contains('placeholder')}`);
-                        });
+                        // Store in array at specific index
+                        if (!outfitImages[event.imageIndex]) {
+                            outfitImages[event.imageIndex] = { url: event.imageUrl, index: event.imageIndex };
+                        }
                         
-                        // Update the specific image placeholder
-                        const placeholders = document.querySelectorAll('.outfit-image-card.placeholder');
-                        console.log(`Found ${placeholders.length} placeholders, updating index ${event.imageIndex}`);
-                        
-                        // Get the specific card by index from all cards
-                        const targetCard = allCards[event.imageIndex];
-                        if (targetCard && targetCard.classList.contains('placeholder')) {
-                            targetCard.classList.remove('placeholder');
-                            targetCard.innerHTML = `
-                                <img src="${event.imageUrl}" alt="Outfit ${event.imageIndex + 1}" loading="lazy">
-                                <p class="outfit-caption">${getOutfitCaption(event.imageIndex)}</p>
-                            `;
-                            console.log(`Successfully updated image card at index ${event.imageIndex}`);
-                        } else if (targetCard) {
-                            console.warn(`Card at index ${event.imageIndex} is not a placeholder anymore`);
+                        // Use a more robust selector - get all cards and find the one for this index
+                        const outfitGrid = document.querySelector('.outfit-images-grid');
+                        if (outfitGrid) {
+                            const allCards = outfitGrid.children;
+                            console.log(`Total outfit cards: ${allCards.length}, updating index ${event.imageIndex}`);
+                            
+                            if (allCards[event.imageIndex]) {
+                                const targetCard = allCards[event.imageIndex];
+                                console.log(`Updating card at index ${event.imageIndex}, current HTML:`, targetCard.innerHTML.substring(0, 100));
+                                
+                                // Update the card regardless of its current state
+                                targetCard.classList.remove('placeholder');
+                                targetCard.innerHTML = `
+                                    <img src="${event.imageUrl}" alt="Outfit ${event.imageIndex + 1}" loading="lazy" 
+                                         onerror="console.error('Failed to load image:', this.src)">
+                                    <p class="outfit-caption">${getOutfitCaption(event.imageIndex)}</p>
+                                `;
+                                console.log(`Successfully updated image card at index ${event.imageIndex}`);
+                            } else {
+                                console.error(`Could not find card at index ${event.imageIndex} in grid`);
+                            }
                         } else {
-                            console.error(`Could not find card at index ${event.imageIndex}`);
+                            console.error('Could not find outfit grid');
+                        }
+                    }
+                    
+                    // Handle all images complete event
+                    if (event.status === 'all_images_complete') {
+                        console.log(`All images complete event received. Total images: ${event.totalImages}`);
+                        // Double-check all images are displayed
+                        const grid = document.querySelector('.outfit-images-grid');
+                        if (grid) {
+                            const placeholders = grid.querySelectorAll('.placeholder');
+                            console.log(`Remaining placeholders: ${placeholders.length}`);
                         }
                     }
                     
