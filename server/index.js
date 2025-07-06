@@ -291,13 +291,20 @@ app.post('/api/style-advice-stream', rateLimitMiddleware('requests'), async (req
             }
             
             // Send success update
-            res.write(`data: ${JSON.stringify({ 
+            const imageCompleteEvent = {
               status: 'image_complete', 
               message: `✅ Outfit ${index + 1} created!`,
               imageIndex: index,
               imageUrl: imageUrl,
               timeTaken: imageTime
-            })}\n\n`);
+            };
+            console.log(`[${new Date().toISOString()}] Sending image_complete event for image ${index + 1}:`, imageCompleteEvent);
+            res.write(`data: ${JSON.stringify(imageCompleteEvent)}\n\n`);
+            
+            // Force flush the response to ensure the event is sent immediately
+            if (res.flush && typeof res.flush === 'function') {
+              res.flush();
+            }
             
             return { url: imageUrl, prompt };
           } catch (error) {
@@ -325,8 +332,13 @@ app.post('/api/style-advice-stream', rateLimitMiddleware('requests'), async (req
         const results = await Promise.all(imagePromises);
         outfitImages = results.filter(img => img !== null);
         
+        console.log(`[${new Date().toISOString()}] All image promises resolved. Generated ${outfitImages.length} images successfully.`);
+        
         // Clear the keepalive interval
         clearInterval(imageKeepAlive);
+        
+        // Add a delay to ensure all image_complete events are processed
+        await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (error) {
         console.error('Error generating outfit images:', error);
         
@@ -365,8 +377,13 @@ app.post('/api/style-advice-stream', rateLimitMiddleware('requests'), async (req
       }
     })}\n\n`);
     
-    res.write('event: close\ndata: \n\n');
-    res.end();
+    // Add a delay to ensure all data is flushed
+    console.log(`[${new Date().toISOString()}] Preparing to close SSE connection...`);
+    setTimeout(() => {
+      console.log(`[${new Date().toISOString()}] Sending close event and ending response`);
+      res.write('event: close\ndata: \n\n');
+      res.end();
+    }, 1500);
     
   } catch (error) {
     console.error('Error in streaming endpoint:', error);

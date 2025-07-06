@@ -192,16 +192,21 @@ form.addEventListener('submit', async (e) => {
                     
                     // Handle image completion - update specific image
                     if (event.status === 'image_complete' && event.imageUrl) {
+                        console.log(`Received image_complete event for image ${event.imageIndex + 1}:`, event);
                         outfitImages.push({ url: event.imageUrl });
                         
                         // Update the specific image placeholder
                         const placeholders = document.querySelectorAll('.outfit-image-card.placeholder');
+                        console.log(`Found ${placeholders.length} placeholders, updating index ${event.imageIndex}`);
                         if (placeholders[event.imageIndex]) {
                             placeholders[event.imageIndex].classList.remove('placeholder');
                             placeholders[event.imageIndex].innerHTML = `
                                 <img src="${event.imageUrl}" alt="Outfit ${event.imageIndex + 1}" loading="lazy">
                                 <p class="outfit-caption">${getOutfitCaption(event.imageIndex)}</p>
                             `;
+                            console.log(`Successfully updated image placeholder ${event.imageIndex}`);
+                        } else {
+                            console.error(`Could not find placeholder for image index ${event.imageIndex}`);
                         }
                     }
                     
