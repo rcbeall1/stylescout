@@ -113,12 +113,42 @@ form.addEventListener('submit', async (e) => {
             
             let buffer = '';
             
+            // Store chunks for reassembly
+            const imageChunks = {};
+            
             const processEvent = (data) => {
                 try {
                     const event = JSON.parse(data);
                     
                     // Ignore keepalive messages - they're just to prevent timeout
                     if (event.status === 'keepalive') {
+                        return;
+                    }
+                    
+                    // Handle image chunks
+                    if (event.status === 'image_chunk') {
+                        const index = event.imageIndex;
+                        if (!imageChunks[index]) {
+                            imageChunks[index] = [];
+                        }
+                        imageChunks[index].push(event.chunk);
+                        
+                        // If this is the last chunk, reassemble and display
+                        if (event.isLast) {
+                            const completeImageUrl = imageChunks[index].join('');
+                            delete imageChunks[index]; // Clean up
+                            
+                            // Display the image
+                            outfitImages.push({ url: completeImageUrl });
+                            const placeholders = document.querySelectorAll('.outfit-image-card.placeholder');
+                            if (placeholders[index]) {
+                                placeholders[index].classList.remove('placeholder');
+                                placeholders[index].innerHTML = `
+                                    <img src="${completeImageUrl}" alt="Outfit ${index + 1}" loading="lazy">
+                                    <p class="outfit-caption">${getOutfitCaption(index)}</p>
+                                `;
+                            }
+                        }
                         return;
                     }
                     
@@ -192,16 +222,26 @@ form.addEventListener('submit', async (e) => {
                     
                     // Handle image completion - update specific image
                     if (event.status === 'image_complete' && event.imageUrl) {
-                        outfitImages.push({ url: event.imageUrl });
-                        
-                        // Update the specific image placeholder
-                        const placeholders = document.querySelectorAll('.outfit-image-card.placeholder');
-                        if (placeholders[event.imageIndex]) {
-                            placeholders[event.imageIndex].classList.remove('placeholder');
-                            placeholders[event.imageIndex].innerHTML = `
-                                <img src="${event.imageUrl}" alt="Outfit ${event.imageIndex + 1}" loading="lazy">
-                                <p class="outfit-caption">${getOutfitCaption(event.imageIndex)}</p>
-                            `;
+                        // If imageUrl is 'CHUNKED_DATA', wait for chunks
+                        if (event.imageUrl === 'CHUNKED_DATA') {
+                            // Update status to show it's being received
+                            const placeholders = document.querySelectorAll('.outfit-placeholder p');
+                            if (placeholders[event.imageIndex]) {
+                                placeholders[event.imageIndex].textContent = 'Receiving image data...';
+                            }
+                        } else {
+                            // Normal URL, display immediately
+                            outfitImages.push({ url: event.imageUrl });
+                            
+                            // Update the specific image placeholder
+                            const placeholders = document.querySelectorAll('.outfit-image-card.placeholder');
+                            if (placeholders[event.imageIndex]) {
+                                placeholders[event.imageIndex].classList.remove('placeholder');
+                                placeholders[event.imageIndex].innerHTML = `
+                                    <img src="${event.imageUrl}" alt="Outfit ${event.imageIndex + 1}" loading="lazy">
+                                    <p class="outfit-caption">${getOutfitCaption(event.imageIndex)}</p>
+                                `;
+                            }
                         }
                     }
                     
