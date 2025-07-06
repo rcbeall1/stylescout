@@ -117,6 +117,11 @@ form.addEventListener('submit', async (e) => {
                 try {
                     const event = JSON.parse(data);
                     
+                    // Ignore keepalive messages - they're just to prevent timeout
+                    if (event.status === 'keepalive') {
+                        return;
+                    }
+                    
                     // Update loading status based on event
                     // Only update if we haven't displayed the advice yet
                     if ((event.status === 'starting' || event.status === 'searching' || 

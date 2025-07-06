@@ -229,6 +229,14 @@ app.post('/api/style-advice-stream', rateLimitMiddleware('requests'), async (req
           })}\n\n`);
         }
         
+        // Set up keepalive during image generation to prevent Cloudflare timeout
+        const imageKeepAlive = setInterval(() => {
+          res.write(`data: ${JSON.stringify({ 
+            status: 'keepalive', 
+            message: '⏳ Still generating outfits...' 
+          })}\n\n`);
+        }, 15000); // Send every 15 seconds
+        
         // Generate all images in parallel for speed
         const imagePromises = outfitPrompts.map(async (prompt, index) => {
           try {
@@ -282,8 +290,17 @@ app.post('/api/style-advice-stream', rateLimitMiddleware('requests'), async (req
         // Wait for all images to complete (success or failure)
         const results = await Promise.all(imagePromises);
         outfitImages = results.filter(img => img !== null);
+        
+        // Clear the keepalive interval
+        clearInterval(imageKeepAlive);
       } catch (error) {
         console.error('Error generating outfit images:', error);
+        
+        // Clear the keepalive interval on error too
+        if (typeof imageKeepAlive !== 'undefined') {
+          clearInterval(imageKeepAlive);
+        }
+        
         res.write(`data: ${JSON.stringify({ 
           status: 'images_error', 
           message: '⚠️ Could not generate outfit images',
