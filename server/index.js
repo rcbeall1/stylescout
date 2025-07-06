@@ -11,6 +11,9 @@ const feedbackRoutes = require('./routes/feedback');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Temporary image storage (in production, use a proper storage solution)
+const imageStorage = new Map();
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -32,6 +35,30 @@ app.use('/api/admin', adminRoutes);
 
 // Feedback routes
 app.use('/api/feedback', feedbackRoutes);
+
+// Temporary image serving endpoint
+app.get('/api/image/:id', (req, res) => {
+  const imageData = imageStorage.get(req.params.id);
+  if (!imageData) {
+    return res.status(404).send('Image not found');
+  }
+  
+  // Extract mime type and base64 data
+  const matches = imageData.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+  if (!matches) {
+    return res.status(400).send('Invalid image data');
+  }
+  
+  const mimeType = matches[1];
+  const buffer = Buffer.from(matches[2], 'base64');
+  
+  res.setHeader('Content-Type', mimeType);
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.send(buffer);
+  
+  // Clean up old images after 5 minutes
+  setTimeout(() => imageStorage.delete(req.params.id), 5 * 60 * 1000);
+});
 
 // Get current AI provider
 function getAIProvider() {
@@ -253,8 +280,15 @@ app.post('/api/style-advice-stream', rateLimitMiddleware('requests'), async (req
               setTimeout(() => reject(new Error('Image generation took too long')), 60000)
             );
             
-            const imageUrl = await Promise.race([imagePromise, timeoutPromise]);
+            let imageUrl = await Promise.race([imagePromise, timeoutPromise]);
             const imageTime = Date.now() - imageStartTime;
+            
+            // If it's a base64 image, store it and return a URL
+            if (imageUrl && imageUrl.startsWith('data:')) {
+              const imageId = `img_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`;
+              imageStorage.set(imageId, imageUrl);
+              imageUrl = `/api/image/${imageId}`;
+            }
             
             // Send success update
             res.write(`data: ${JSON.stringify({ 
