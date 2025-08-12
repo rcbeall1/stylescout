@@ -165,29 +165,36 @@ form.addEventListener('submit', async (e) => {
                         // Show placeholder for images
                         const outfitSection = document.getElementById('outfitSection');
                         outfitSection.innerHTML = `
-                            <h3>Outfit Inspiration</h3>
+                            <h3 id="outfit-inspiration-title">Outfit Inspiration</h3>
                             <div class="outfit-images-grid">
                                 <div class="outfit-image-card placeholder">
                                     <div class="outfit-placeholder">
                                         <div class="loading-spinner"></div>
-                                        <p>Generating outfit 1...</p>
+                                        <p>Creating outfit...</p>
                                     </div>
                                 </div>
                                 <div class="outfit-image-card placeholder">
                                     <div class="outfit-placeholder">
                                         <div class="loading-spinner"></div>
-                                        <p>Generating outfit 2...</p>
+                                        <p>Creating outfit...</p>
                                     </div>
                                 </div>
                                 <div class="outfit-image-card placeholder">
                                     <div class="outfit-placeholder">
                                         <div class="loading-spinner"></div>
-                                        <p>Generating outfit 3...</p>
+                                        <p>Creating outfit...</p>
                                     </div>
                                 </div>
                             </div>
                         `;
                         outfitSection.style.display = 'block';
+                    }
+
+                    if (event.status === 'generating_image' && event.message.includes('using')) {
+                        const title = document.getElementById('outfit-inspiration-title');
+                        if(title) {
+                            title.textContent = `Outfit Inspiration (via ${event.message.split('using ')[1]})`;
+                        }
                     }
                     
                     // Handle image completion - update specific image
