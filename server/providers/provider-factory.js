@@ -41,9 +41,9 @@ class ProviderFactory {
       },
       google: {
         name: 'Gemini (Google)',
-        supportsImages: true,
-        models: ['gemini-2.5-pro', 'gemini-2.0-flash-preview-image-generation'],
-        description: 'Gemini 2.5 Pro with Google Search and image generation'
+        supportsImages: false,
+        models: ['gemini-2.5-pro'],
+        description: 'Gemini 2.5 Pro with Google Search for real-time fashion info'
       },
       perplexity: {
         name: 'Perplexity',

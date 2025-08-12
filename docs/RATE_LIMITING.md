@@ -30,17 +30,11 @@ Add these environment variables to your `.env` file:
 
 ```env
 # Daily API Cost Control Limits
-
-# Text request limits
-OPENAI_DAILY_LIMIT=100
-ANTHROPIC_DAILY_LIMIT=100
-GOOGLE_DAILY_LIMIT=100
-PERPLEXITY_DAILY_LIMIT=100
-
-# Image generation limits
-# Note: If a provider doesn't support images, OpenAI will be used as a fallback.
-OPENAI_IMAGES_DAILY_LIMIT=50
-GOOGLE_IMAGES_DAILY_LIMIT=50
+OPENAI_DAILY_LIMIT=100       # Max daily requests for OpenAI
+ANTHROPIC_DAILY_LIMIT=100    # Max daily requests for Anthropic
+GOOGLE_DAILY_LIMIT=100       # Max daily requests for Google
+PERPLEXITY_DAILY_LIMIT=100   # Max daily requests for Perplexity
+OPENAI_IMAGES_DAILY_LIMIT=50 # Max daily image generation requests
 
 # Admin API Key (required for admin endpoints)
 ADMIN_API_KEY=your_secure_admin_key_here
@@ -96,11 +90,10 @@ curl -X POST -H "X-Admin-Key: your_secure_admin_key_here" \
 
 ## How It Works
 
-1. **Request Tracking**: Each API request for text or images is checked against the daily limits for the corresponding provider.
-2. **Image Generation Fallback**: If the selected AI provider does not support image generation, the system automatically falls back to using the OpenAI DALL-E 3 model. In this case, the `OPENAI_IMAGES_DAILY_LIMIT` is used.
-3. **Persistence**: Usage data is stored in `server/data/rate-limits.json`.
-4. **Auto-Reset**: Counters automatically reset at midnight UTC.
-5. **Graceful Degradation**: If the rate limiter fails, requests are allowed through to prevent service disruption, though this is not ideal for cost control.
+1. **Request Tracking**: Each API request is checked against daily limits before processing
+2. **Persistence**: Usage data is stored in `server/data/rate-limits.json`
+3. **Auto-Reset**: Counters automatically reset at midnight UTC
+4. **Graceful Degradation**: If the rate limiter fails, requests are allowed through to prevent service disruption
 
 ## Rate Limit Headers
 
