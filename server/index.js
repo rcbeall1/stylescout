@@ -82,6 +82,54 @@ function getAIProvider() {
   return ProviderFactory.create(providerName, apiKey);
 }
 
+// Helper function to generate and stream images
+async function generateAndStreamImages(provider, prompts, res) {
+  let imageProvider = provider;
+  let providerUsedForImages = process.env.AI_PROVIDER || 'openai';
+
+  const providerInfo = ProviderFactory.getAvailableProviders()[providerUsedForImages];
+  if (!providerInfo.supportsImages) {
+    console.log(`Provider ${providerUsedForImages} does not support images, falling back to OpenAI.`);
+    providerUsedForImages = 'openai';
+    imageProvider = ProviderFactory.create('openai', process.env.OPENAI_API_KEY);
+  }
+
+  const stream = (data) => {
+    if (res && res.write) {
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+      if (res.flush && typeof res.flush === 'function') {
+        res.flush();
+      }
+    }
+  };
+
+  stream({ status: 'generating_image', message: `🎨 Creating outfit inspiration using ${providerUsedForImages}...` });
+
+  const imagePromises = prompts.map(async (prompt, index) => {
+    try {
+      stream({ status: 'generating_image', message: `🎨 Creating outfit inspiration ${index + 1} of ${prompts.length}...`, imageIndex: index });
+      let imageUrl = await imageProvider.generateOutfitImage(prompt);
+      if (imageUrl && imageUrl.startsWith('data:')) {
+        const imageId = `img_${Date.now()}_${index}`;
+        imageStorage.set(imageId, imageUrl);
+        imageUrl = `/api/image/${imageId}`;
+      }
+      stream({ status: 'image_complete', message: `✅ Outfit ${index + 1} created!`, imageIndex: index, imageUrl });
+      return { url: imageUrl, prompt };
+    } catch (error) {
+      console.error(`Failed to generate image ${index + 1} with ${providerUsedForImages}:`, error.message);
+      stream({ status: 'image_failed', message: `⚠️ Couldn't generate outfit ${index + 1}.`, imageIndex: index });
+      return null;
+    }
+  });
+
+  const results = await Promise.all(imagePromises);
+  const successfulImages = results.filter(img => img !== null);
+
+  stream({ status: 'all_images_complete', message: '✨ All outfits generated!', totalImages: successfulImages.length });
+  return successfulImages;
+}
+
 // Routes
 app.get('/api/providers', (req, res) => {
   const providers = ProviderFactory.getAvailableProviders();
@@ -92,66 +140,37 @@ app.get('/api/providers', (req, res) => {
   });
 });
 
+async function getStyleAdviceAndImages(city, season, provider, req) {
+  const advice = await provider.getStyleAdvice(city, season);
+
+  const outfitPrompts = [
+    `${season} casual outfit flat lay for ${city}: Relaxed daywear that locals actually wear. Include denim, comfortable shoes, and practical accessories. Realistic style, natural lighting.`,
+    `${season} smart casual outfit for ${city}: Versatile pieces for lunch, shopping, or casual dinner. Balance between comfort and style. Include transitional pieces that work day to night.`,
+    `${season} active outfit for ${city}: Simple athletic wear with sneakers and comfortable clothes.`
+  ];
+
+  // For the non-streaming endpoint, we pass null for the response object
+  const outfitImages = await generateAndStreamImages(provider, outfitPrompts, null);
+
+  await incrementUsage(req);
+  if (outfitImages.length > 0) {
+    req.rateLimitProvider = provider.constructor.name.toLowerCase().replace('provider', '');
+    req.rateLimitType = 'images';
+    await incrementUsage(req);
+  }
+
+  return { advice, outfitImages };
+}
+
 app.post('/api/style-advice', rateLimitMiddleware('requests'), async (req, res) => {
   try {
     const { city, season } = req.body;
-    
     if (!city || !season) {
       return res.status(400).json({ error: 'City and season are required' });
     }
     
     const provider = getAIProvider();
-    const advice = await provider.getStyleAdvice(city, season);
-    
-    // Generate outfit images automatically (using OpenAI regardless of main provider)
-    let outfitImages = [];
-    
-    // TEMPORARILY DISABLED FOR DEBUGGING
-    const SKIP_IMAGE_GENERATION = false;
-    
-    if (!SKIP_IMAGE_GENERATION) {
-    try {
-      // Always use OpenAI for image generation
-      const openAIProvider = ProviderFactory.create('openai', process.env.OPENAI_API_KEY);
-      
-      // Generate 3 different outfit images based on the advice and city context
-      const outfitPrompts = [
-        `${season} casual outfit flat lay for ${city}: Relaxed daywear that locals actually wear. Include denim, comfortable shoes, and practical accessories. Realistic style, natural lighting.`,
-        `${season} smart casual outfit for ${city}: Versatile pieces for lunch, shopping, or casual dinner. Balance between comfort and style. Include transitional pieces that work day to night.`,
-        `${season} active lifestyle outfit for ${city}: Athletic-inspired streetwear for walking, exploring, or outdoor activities. Include sneakers, breathable fabrics, and functional accessories.`
-      ];
-      
-      // Generate images in parallel for better performance
-      const imagePromises = outfitPrompts.map(async (prompt, index) => {
-        try {
-          console.log(`Generating image ${index + 1} with prompt:`, prompt.substring(0, 100) + '...');
-          const imageUrl = await openAIProvider.generateOutfitImage(prompt);
-          console.log(`Image ${index + 1} generated successfully:`, imageUrl);
-          return { url: imageUrl, prompt };
-        } catch (error) {
-          console.error(`Failed to generate image ${index + 1}:`, error.message);
-          console.error('Full error:', error);
-          return null;
-        }
-      });
-      
-      const results = await Promise.all(imagePromises);
-      outfitImages = results.filter(img => img !== null);
-    } catch (error) {
-      console.error('Error generating outfit images:', error);
-      // Continue without images if generation fails
-    }
-    } // End of SKIP_IMAGE_GENERATION check
-    
-    // Increment usage counter on success
-    await incrementUsage(req);
-    
-    // If we generated images, increment image counter too
-    if (outfitImages.length > 0) {
-      req.rateLimitProvider = 'openai';
-      req.rateLimitType = 'images';
-      await incrementUsage(req);
-    }
+    const { advice, outfitImages } = await getStyleAdviceAndImages(city, season, provider, req);
     
     res.json({
       success: true,
@@ -241,135 +260,14 @@ app.post('/api/style-advice-stream', rateLimitMiddleware('requests'), async (req
     let outfitImages = [];
     const SKIP_IMAGE_GENERATION = false;
     
-    if (!SKIP_IMAGE_GENERATION) {
-      try {
-        const openAIProvider = ProviderFactory.create('openai', process.env.OPENAI_API_KEY);
-        
-        const outfitPrompts = [
-          `${season} casual outfit flat lay for ${city}: Relaxed daywear that locals actually wear. Include denim, comfortable shoes, and practical accessories. Realistic style, natural lighting.`,
-          `${season} smart casual outfit for ${city}: Versatile pieces for lunch, shopping, or casual dinner. Balance between comfort and style. Include transitional pieces that work day to night.`,
-          `${season} active outfit for ${city}: Simple athletic wear with sneakers and comfortable clothes.`
-        ];
-        
-        // Send initial status for all images
-        for (let i = 0; i < outfitPrompts.length; i++) {
-          res.write(`data: ${JSON.stringify({ 
-            status: 'generating_image', 
-            message: `🎨 Creating outfit inspiration ${i + 1} of 3...`,
-            imageIndex: i
-          })}\n\n`);
-        }
-        
-        // Set up keepalive during image generation to prevent Cloudflare timeout
-        const imageKeepAlive = setInterval(() => {
-          res.write(`data: ${JSON.stringify({ 
-            status: 'keepalive', 
-            message: '⏳ Still generating outfits...' 
-          })}\n\n`);
-        }, 15000); // Send every 15 seconds
-        
-        // Generate all images in parallel for speed
-        const imagePromises = outfitPrompts.map(async (prompt, index) => {
-          try {
-            // Add a small staggered delay to avoid rate limiting (0ms, 500ms, 1000ms)
-            if (index > 0) {
-              await new Promise(resolve => setTimeout(resolve, index * 500));
-            }
-            
-            const imageStartTime = Date.now();
-            
-            // Add timeout for image generation (60 seconds per image)
-            const imagePromise = openAIProvider.generateOutfitImage(prompt);
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Image generation took too long')), 60000)
-            );
-            
-            let imageUrl = await Promise.race([imagePromise, timeoutPromise]);
-            const imageTime = Date.now() - imageStartTime;
-            
-            // If it's a base64 image, store it and return a URL
-            if (imageUrl && imageUrl.startsWith('data:')) {
-              const imageId = `img_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`;
-              imageStorage.set(imageId, imageUrl);
-              imageUrl = `/api/image/${imageId}`;
-            }
-            
-            // Send success update
-            const imageCompleteEvent = {
-              status: 'image_complete', 
-              message: `✅ Outfit ${index + 1} created!`,
-              imageIndex: index,
-              imageUrl: imageUrl,
-              timeTaken: imageTime
-            };
-            console.log(`[${new Date().toISOString()}] Sending image_complete event for image ${index + 1}:`, imageCompleteEvent);
-            res.write(`data: ${JSON.stringify(imageCompleteEvent)}\n\n`);
-            
-            // Force flush the response to ensure the event is sent immediately
-            if (res.flush && typeof res.flush === 'function') {
-              res.flush();
-            }
-            
-            return { url: imageUrl, prompt };
-          } catch (error) {
-            console.error(`Failed to generate image ${index + 1}:`, error.message);
-            console.error('Full error details:', error);
-            
-            // Check if it's a rate limit error
-            const isRateLimit = error.message?.includes('rate') || error.message?.includes('limit');
-            const errorMessage = isRateLimit 
-              ? 'Rate limit reached - try again later' 
-              : error.message;
-            
-            // Send failure update
-            res.write(`data: ${JSON.stringify({ 
-              status: 'image_failed', 
-              message: `⚠️ Couldn't generate outfit ${index + 1}: ${errorMessage}`,
-              imageIndex: index,
-              error: errorMessage
-            })}\n\n`);
-            return null;
-          }
-        });
-        
-        // Wait for all images to complete (success or failure)
-        const results = await Promise.all(imagePromises);
-        outfitImages = results.filter(img => img !== null);
-        
-        console.log(`[${new Date().toISOString()}] All image promises resolved. Generated ${outfitImages.length} images successfully.`);
-        
-        // Clear the keepalive interval
-        clearInterval(imageKeepAlive);
-        
-        // Send a final status update to confirm all images are done
-        res.write(`data: ${JSON.stringify({ 
-          status: 'all_images_complete', 
-          message: '✨ All outfits generated!',
-          totalImages: outfitImages.length
-        })}\n\n`);
-        
-        // Force flush after sending all image events
-        if (res.flush && typeof res.flush === 'function') {
-          res.flush();
-        }
-        
-        // Add a delay to ensure all events are processed
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      } catch (error) {
-        console.error('Error generating outfit images:', error);
-        
-        // Clear the keepalive interval on error too
-        if (typeof imageKeepAlive !== 'undefined') {
-          clearInterval(imageKeepAlive);
-        }
-        
-        res.write(`data: ${JSON.stringify({ 
-          status: 'images_error', 
-          message: '⚠️ Could not generate outfit images',
-          error: error.message
-        })}\n\n`);
-      }
-    }
+    // Generate outfit images using the selected provider with OpenAI fallback
+    const outfitPrompts = [
+      `${season} casual outfit flat lay for ${city}: Relaxed daywear that locals actually wear. Include denim, comfortable shoes, and practical accessories. Realistic style, natural lighting.`,
+      `${season} smart casual outfit for ${city}: Versatile pieces for lunch, shopping, or casual dinner. Balance between comfort and style. Include transitional pieces that work day to night.`,
+      `${season} active outfit for ${city}: Simple athletic wear with sneakers and comfortable clothes.`
+    ];
+
+    outfitImages = await generateAndStreamImages(provider, outfitPrompts, res);
     
     // Increment usage counters
     await incrementUsage(req);

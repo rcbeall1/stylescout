@@ -6,7 +6,7 @@ StyleScout is an AI-powered fashion advice application that provides hyper-speci
 
 - 🤖 **Multiple AI Providers**: Choose between Claude Opus 4, Gemini 2.5 Pro, OpenAI o3, or Perplexity Sonar Pro
 - 🔍 **Real-Time Information**: Uses web search to find current weather, local stores, and fashion trends
-- 🎨 **Outfit Visualization**: Automatically generates 3 outfit inspiration images
+- 🎨 **Outfit Visualization**: Automatically generates 3 outfit inspiration images using the selected provider (with a fallback to OpenAI if the provider does not support image generation).
 - 💰 **Cost Protection**: Built-in rate limiting and daily usage caps
 - 📊 **Usage Monitoring**: Admin dashboard to track API usage
 - 💬 **User Feedback**: Secure feedback system for continuous improvement
@@ -52,13 +52,19 @@ Set `AI_PROVIDER` in your `.env` file to one of:
 
 ### Rate Limiting
 
-Protect against excessive API costs by setting daily limits:
+Protect against excessive API costs by setting daily limits. Image generation is counted separately from text requests.
+
 ```env
+# Text request limits
 OPENAI_DAILY_LIMIT=100
 ANTHROPIC_DAILY_LIMIT=100
 GOOGLE_DAILY_LIMIT=100
 PERPLEXITY_DAILY_LIMIT=100
+
+# Image generation limits
+# Note: If a provider doesn't support images, OpenAI will be used as a fallback.
 OPENAI_IMAGES_DAILY_LIMIT=50
+GOOGLE_IMAGES_DAILY_LIMIT=50
 ```
 
 ### Admin Access
